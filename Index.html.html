@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+   <title>Whiteboard App v6.6</title> <!-- Version Update -->
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+   <style>
+     /* --- Styles --- */
+     /* Basic Reset & Body Styling */
+     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+     html, body { width: 100%; height: 100%; overflow: hidden; background-color: #f0f0f0; position: fixed; }
+     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; min-height: -webkit-fill-available; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; }
+     input, textarea, [contenteditable="true"] { user-select: text !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; }
+
+     /* Screen Management */
+     .screen { display: none; width: 100%; height: 100%; flex-direction: column; position: absolute; top: 0; left: 0; overflow: hidden; z-index: 1; background-color: #f0f0f0; }
+     #start-screen, #project-setup-screen, #saved-projects-screen { justify-content: center; align-items: center; padding: 20px; overflow-y: auto; user-select: auto; -webkit-user-select: auto; -moz-user-select: auto; -ms-user-select: auto; }
+     .screen.active { display: flex; z-index: 2; }
+
+     /* Start Screen */
+     #start-screen { background-color: black; color: white; gap: 15px; text-align: center; }
+     #start-screen h1 { margin-bottom: 25px; font-size: 2.5em; }
+     #start-screen .button-container { display: flex; flex-direction: column; gap: 15px; align-items: center; margin-bottom: 20px; }
+     #start-screen #ad-banner-start-container { width: 300px; height: 250px; margin: auto auto 20px auto; flex-shrink: 0; overflow: hidden; background-color: #333; /* Placeholder bg */ display: flex; justify-content: center; align-items: center; }
+     #start-screen #ad-banner-start-container::before { content: "Ad Area 1"; color: #888; }
+
+
+     /* Buttons */
+     .btn { padding: 12px 25px; font-size: 1.1em; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s ease, transform 0.1s ease; display: inline-flex; align-items: center; gap: 8px; min-width: 200px; justify-content: center; line-height: 1.5; user-select: none; -webkit-user-select: none; }
+     .btn:active { transform: scale(0.98); }
+     .blue-btn { background-color: #007bff; color: white; }
+     .blue-btn:hover { background-color: #0056b3; }
+     .grey-btn { background-color: #6c757d; color: white; }
+     .grey-btn:hover { background-color: #5a6268; }
+     .btn-sm { padding: 5px 10px; font-size: 0.9em; min-width: auto; }
+
+     /* Project Setup Screen */
+     #project-setup-screen { background-color: #ffffff; gap: 15px; max-width: 500px; width: 90%; height: auto; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); position: relative; text-align: center; }
+     #project-setup-screen h2 { color: #333; margin-bottom: 20px; width: 100%; }
+     #ad-banner-setup-container { width: 100%; max-width: 728px; height: 90px; margin: 15px auto; flex-shrink: 0; display: flex; justify-content: center; align-items: center; overflow: hidden; background-color: #eee; /* Placeholder bg */ }
+     #ad-banner-setup-container::before { content: "Ad Area 2"; color: #aaa; }
+     #ad-banner-setup-container > div, #ad-banner-setup-container > iframe { margin: 0 auto; }
+     .form-group { width: 90%; max-width: 400px; margin: 0 auto 15px auto; text-align: left; }
+     .form-group label { display: block; margin-bottom: 5px; color: #555; font-weight: bold; }
+     .form-group input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; user-select: text !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; }
+
+     /* Whiteboard Screen Styling */
+     #whiteboard-screen { background-color: #555; justify-content: flex-start; align-items: stretch; padding: 0; }
+     #toolbar { width: 100%; height: 60px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6; display: flex; align-items: center; justify-content: center; padding: 0 5px; gap: 5px; flex-wrap: nowrap; position: relative; z-index: 10; flex-shrink: 0; overflow-x: auto; overflow-y: hidden; user-select: none; -webkit-user-select: none;}
+     #toolbar::-webkit-scrollbar { height: 4px; }
+     #toolbar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px;}
+     #ad-banner-whiteboard-container { width: 100%; height: 95px; display: flex; justify-content: center; align-items: center; padding: 2.5px 0; background-color: #f0f0f0; flex-shrink: 0; overflow: hidden; z-index: 5; }
+     #ad-banner-whiteboard-container::before { content: "Ad Area 3"; color: #aaa; position: absolute; } /* Placeholder text */
+     #ad-banner-whiteboard-container > div, #ad-banner-whiteboard-container > iframe { margin: 0 auto; z-index: 1; position: relative; } /* Ensure ad is above placeholder */
+
+
+     /* Canvas Container & Canvas */
+     #canvas-container { width: 100%; flex-grow: 1; position: relative; overflow: hidden; background-color: white; }
+     #drawing-canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; position: absolute; top: 0; left: 0; background-color: transparent; }
+
+     /* Toolbar Tools */
+     .tool-btn { background: none; border: 1px solid transparent; border-radius: 4px; padding: 6px 8px; font-size: 1.2em; cursor: pointer; color: #495057; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease; flex-shrink: 0; }
+     .tool-btn:hover { background-color: #e9ecef; color: #000; }
+     .tool-btn.active { background-color: #d0e7ff; border-color: #9fcdff; color: #0056b3; }
+     .tool-btn:disabled { color: #ccc; cursor: not-allowed; }
+     .tool-btn:disabled:hover { background-color: transparent; }
+     #color-picker { height: 30px; width: 30px; border: none; padding: 0; margin: 0 3px; cursor: pointer; border-radius: 4px; background-color: transparent; -webkit-appearance: none; -moz-appearance: none; appearance: none; vertical-align: middle; flex-shrink: 0; border: 1px solid #ccc; overflow: hidden;}
+     #color-picker::-webkit-color-swatch-wrapper { padding: 0; border: none; border-radius: 3px; }
+     #color-picker::-webkit-color-swatch { border: none; border-radius: 3px; transform: scale(1.5); }
+     #color-picker::-moz-color-swatch { border: none; border-radius: 3px; transform: scale(1.5); }
+     #brush-size { cursor: pointer; width: 80px; vertical-align: middle; flex-shrink: 0; height: 20px; }
+     .tool-label { display: none; }
+     #brush-size-value { min-width: 20px; text-align: right; font-size: 0.9em; color: #495057; vertical-align: middle; flex-shrink: 0; }
+
+     /* Project Name Display */
+     #current-project-name { position: absolute; top: 5px; left: 10px; background-color: rgba(255, 255, 255, 0.8); padding: 3px 8px; border-radius: 4px; font-size: 0.8em; color: #333; z-index: 11; pointer-events: none; }
+
+     /* Image Search Panel Styling */
+     #image-search-panel { display: none; position: absolute; top: 60px; left: 0; width: 100%; height: calc(100% - 60px - 95px); background-color: rgba(248, 249, 250, 0.98); z-index: 8; flex-direction: column; align-items: center; padding: 10px; border-bottom: 1px solid #ccc; overflow: hidden; user-select: auto; -webkit-user-select: auto;}
+     #image-search-panel.active { display: flex; }
+     #image-search-input-container { display: flex; gap: 5px; margin-bottom: 10px; width: 95%; max-width: 500px; flex-shrink: 0; }
+     #image-search-input { flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
+     #perform-image-search-btn { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 44px; cursor: pointer; transition: background-color 0.2s ease; flex-shrink: 0; }
+     #perform-image-search-btn:hover { background-color: #0056b3; }
+     #image-results-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; padding: 10px; border-top: 1px solid #eee; overflow-y: auto; flex-grow: 1; }
+     #image-results-container img { width: 100px; height: 100px; object-fit: cover; border: 2px solid transparent; border-radius: 4px; cursor: pointer; transition: transform 0.2s ease, border-color 0.2s ease; background-color: #fff; }
+     #image-results-container img:hover { border-color: #007bff; transform: scale(1.05); }
+     #close-image-search-btn { margin-top: 10px; padding: 8px 15px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s ease; flex-shrink: 0; }
+     #close-image-search-btn:hover { background-color: #5a6268; }
+
+     /* Saved Projects Screen Styling */
+     #saved-projects-screen { background-color: #ffffff; gap: 15px; max-width: 600px; width: 90%; height: auto; max-height: 85vh; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); position: relative; padding: 20px; }
+     #saved-projects-screen h2 { color: #333; margin-bottom: 20px; width: 100%; text-align: center; }
+     #project-list { width: 100%; max-height: calc(85vh - 150px); overflow-y: auto; border: 1px solid #eee; border-radius: 4px; padding: 10px; }
+     .project-list-item { background-color: #f8f9fa; padding: 10px 15px; margin-bottom: 8px; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s ease; }
+     .project-list-item:hover { background-color: #e9ecef; }
+     .project-list-item span { font-weight: bold; margin-right: 10px; word-break: break-all; flex-grow: 1; }
+     .delete-project-btn { background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.1em; padding: 5px; flex-shrink: 0; line-height: 1; }
+     .delete-project-btn:hover { color: #a71d2a; }
+
+     /* Interstitial Ad Overlay Styling */
+     #interstitial-ad-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.75); z-index: 100; justify-content: center; align-items: center; padding: 15px; }
+     #interstitial-ad-overlay.active { display: flex; }
+     #interstitial-ad-container { position: relative; width: 320px; height: auto; min-height: 270px; background-color: #fff; border-radius: 5px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); padding: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+     #interstitial-ad-content { width: 300px; height: 250px; overflow: hidden; display: flex; justify-content: center; align-items: center; flex-shrink: 0; margin-bottom: 10px; background-color: #f0f0f0; /* Visible background */ border: 1px dashed #ccc; /* Border to show area */ }
+     #interstitial-ad-content p { color: #888; font-style: italic; } /* Style for placeholder/error text */
+     #interstitial-timer-display { position: absolute; top: 8px; right: 10px; background-color: rgba(0, 0, 0, 0.6); color: white; padding: 3px 8px; border-radius: 3px; font-size: 0.9em; font-weight: bold; z-index: 101; }
+
+     /* Responsive Styles */
+     @media (max-width: 768px) { #toolbar { height: 55px; gap: 3px; } .tool-btn { font-size: 1.1em; padding: 5px 6px;} #ad-banner-whiteboard-container { height: auto; min-height: 50px; max-height: 90px; } #image-search-panel { top: 55px; height: calc(100% - 55px - 55px); } #image-results-container img { width: 80px; height: 80px; } #start-screen #ad-banner-start-container { width: 100%; max-width: 300px; } #ad-banner-setup-container { max-width: 100%; height: auto; min-height: 50px; max-height: 90px; } .btn { min-width: 180px; padding: 10px 20px; } }
+     @media (orientation: landscape) and (max-height: 500px) { #toolbar { height: 50px; gap: 4px; padding: 0 5px; } .tool-btn { font-size: 1em; padding: 5px; } #color-picker { width: 25px; height: 25px;} #brush-size { width: 70px; } #brush-size-value { font-size: 0.8em;} #ad-banner-whiteboard-container { height: 55px; padding: 1px 0;} #start-screen h1 { margin-bottom: 15px; font-size: 2em; margin-top: 0; } #start-screen .button-container { margin-bottom: 10px; } .btn { padding: 8px 15px; font-size: 1em; min-width: 150px; } #start-screen #ad-banner-start-container { margin: auto auto 10px auto; height: 100px; width: 300px; } #project-setup-screen { max-width: 90%; max-height: 90vh; padding: 15px; } #ad-banner-setup-container { max-width: 600px; height: 65px; margin: 10px auto; } #image-search-panel { top: 50px; height: calc(100% - 50px - 55px); } #interstitial-ad-container { width: 270px; height: auto; min-height: 230px; padding: 5px;} #interstitial-ad-content { width: 250px; height: 200px; margin-bottom: 5px; } }
+     @media (max-width: 400px) { #toolbar { height: 50px; gap: 2px; justify-content: space-around; } .tool-btn { font-size: 1em; padding: 4px; } #color-picker { width: 24px; height: 24px;} #brush-size { width: 60px; } #brush-size-value { display: none; } .btn { font-size: 0.9em; padding: 10px 12px; min-width: 140px; } #start-screen h1 { font-size: 2em;} #start-screen #ad-banner-start-container { max-width: 100%; width: 250px; height: 200px; } #project-setup-screen { padding: 15px; } #saved-projects-screen { padding: 15px;} #project-list {max-height: calc(85vh - 130px);} #interstitial-ad-container { width: 95%; max-width: 300px; height: auto; min-height: 250px; } #interstitial-ad-content { width: 100%; height: auto; } }
+   </style>
+</head>
+<body>
+
+   <!-- Screens -->
+   <div id="start-screen" class="screen active">
+     <h1>Whiteboard App</h1>
+     <div class="button-container">
+       <button id="start-btn" class="btn blue-btn"><i class="fas fa-play"></i> Start New Project</button>
+       <button id="load-btn" class="btn blue-btn"><i class="fas fa-folder-open"></i> Saved Projects</button>
+     </div>
+     <div id="ad-banner-start-container">
+       <!-- Banner Ad 1 -->
+       <script type="text/javascript">atOptions={'key':'ce2ceb34cde24e9b21eb7df2407b1a31','format':'iframe','height':250,'width':300,'params':{}};</script>
+       <script type="text/javascript" src="//www.highperformanceformat.com/ce2ceb34cde24e9b21eb7df2407b1a31/invoke.js"></script>
+     </div>
+   </div>
+
+   <div id="project-setup-screen" class="screen">
+     <h2>Project Setup</h2>
+     <div id="ad-banner-setup-container">
+        <!-- Banner Ad 2 -->
+        <script type="text/javascript">atOptions={'key':'64fccb2d24fbc0f0c0e8d7271601eec3','format':'iframe','height':90,'width':728,'params':{}};</script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/64fccb2d24fbc0f0c0e8d7271601eec3/invoke.js"></script>
+     </div>
+     <div class="form-group">
+       <label for="project-name">Project Name:</label>
+       <input type="text" id="project-name" placeholder="Enter a name for your project">
+     </div>
+     <button id="create-project-btn" class="btn blue-btn"><i class="fas fa-plus-circle"></i> Create Project</button>
+     <button id="setup-back-btn" class="btn grey-btn"><i class="fas fa-arrow-left"></i> Back</button>
+   </div>
+
+   <div id="whiteboard-screen" class="screen">
+     <div id="toolbar">
+       <button id="pen-tool" class="tool-btn active" title="Pen"><i class="fas fa-pencil-alt"></i></button>
+       <button id="eraser-tool" class="tool-btn" title="Eraser"><i class="fas fa-eraser"></i></button>
+       <button id="move-tool" class="tool-btn" title="Select/Move/Resize/Action"><i class="fas fa-arrows-alt"></i></button>
+       <input type="color" id="color-picker" title="Color Picker" value="#000000">
+       <input type="range" id="brush-size" min="1" max="50" value="5" title="Brush Size">
+       <span id="brush-size-value">5</span>
+       <button id="image-tool-btn" class="tool-btn" title="Insert Image"><i class="fas fa-image"></i></button>
+       <button id="undo-btn" class="tool-btn" title="Undo" disabled><i class="fas fa-undo"></i></button>
+       <button id="redo-btn" class="tool-btn" title="Redo" disabled><i class="fas fa-redo"></i></button>
+       <button id="save-canvas-btn" class="tool-btn" title="Save Project"><i class="fas fa-save"></i></button>
+       <button id="download-canvas-btn" class="tool-btn" title="Download Canvas"><i class="fas fa-download"></i></button>
+       <button id="clear-canvas-btn" class="tool-btn" title="Clear Canvas"><i class="fas fa-trash"></i></button>
+       <button id="exit-whiteboard-btn" class="tool-btn" title="Exit to Start"><i class="fas fa-times-circle"></i></button>
+     </div>
+     <div id="ad-banner-whiteboard-container">
+       <!-- Banner Ad 3 -->
+       <script type="text/javascript">atOptions={'key':'64fccb2d24fbc0f0c0e8d7271601eec3','format':'iframe','height':90,'width':728,'params':{}};</script>
+       <script type="text/javascript" src="//www.highperformanceformat.com/64fccb2d24fbc0f0c0e8d7271601eec3/invoke.js"></script>
+     </div>
+     <div id="canvas-container">
+       <canvas id="drawing-canvas"></canvas>
+     </div>
+     <div id="image-search-panel">
+       <div id="image-search-input-container">
+         <input type="text" id="image-search-input" placeholder="Search Pixabay for images...">
+         <button id="perform-image-search-btn"><i class="fas fa-search"></i> Search</button>
+       </div>
+       <div id="image-results-container"><p>Search for images above.</p></div>
+        <button id="close-image-search-btn"><i class="fas fa-times"></i> Close Search</button>
+     </div>
+     <div id="current-project-name">Project: <span>None</span></div>
+   </div>
+
+   <div id="saved-projects-screen" class="screen">
+     <h2>Saved Projects</h2>
+     <div id="project-list"><p>No saved projects found.</p></div>
+     <button id="saved-back-btn" class="btn grey-btn"><i class="fas fa-arrow-left"></i> Back</button>
+   </div>
+
+   <!-- Interstitial Ad Overlay -->
+   <div id="interstitial-ad-overlay">
+     <div id="interstitial-ad-container">
+        <span id="interstitial-timer-display"></span>
+        <div id="interstitial-ad-content"><p>Loading Ad...</p></div> <!-- Default text -->
+     </div>
+   </div>
+
+   <script>
+     document.addEventListener('DOMContentLoaded', () => {
+       'use strict';
+
+       // --- Constants ---
+       const MAX_HISTORY = 25;
+       const STORAGE_KEY = 'whiteboardProjects_v6';
+       const PIXABAY_API_KEY = '49999289-5f893397275c7ef8ab7972e4a';
+       const INTERSTITIAL_TIMEOUT_SECONDS = 3;
+       const PIXABAY_RESULTS_PER_PAGE = 200;
+       const HANDLE_SIZE = 10; const HANDLE_COLOR = '#007bff'; const SELECTION_COLOR = '#007bff';
+       const ACTION_BTN_SIZE = 24; const ACTION_BTN_PADDING = 5;
+       const DELETE_BTN_COLOR = 'rgba(220, 53, 69, 0.85)'; const DUPLICATE_BTN_COLOR = 'rgba(25, 135, 84, 0.85)';
+       const ACTION_ICON_COLOR = 'white'; const DELETE_ICON = '\uf2ed'; const DUPLICATE_ICON = '\uf0c5';
+       const ACTION_ICON_FONT_SIZE = 14; const ACTION_ICON_FONT = `900 ${ACTION_ICON_FONT_SIZE}px "Font Awesome 6 Free"`;
+
+       // --- DOM References ---
+       const startScreen = document.getElementById('start-screen');
+       const projectSetupScreen = document.getElementById('project-setup-screen');
+       const whiteboardScreen = document.getElementById('whiteboard-screen');
+       const savedProjectsScreen = document.getElementById('saved-projects-screen');
+       const screens = [startScreen, projectSetupScreen, whiteboardScreen, savedProjectsScreen];
+       const startBtn = document.getElementById('start-btn');
+       const loadBtn = document.getElementById('load-btn');
+       const createProjectBtn = document.getElementById('create-project-btn');
+       const setupBackBtn = document.getElementById('setup-back-btn');
+       const savedBackBtn = document.getElementById('saved-back-btn');
+       const exitWhiteboardBtn = document.getElementById('exit-whiteboard-btn');
+       const projectNameInput = document.getElementById('project-name');
+       const currentProjectNameDisplay = document.getElementById('current-project-name')?.querySelector('span');
+       const toolbar = document.getElementById('toolbar');
+       const canvasContainer = document.getElementById('canvas-container');
+       const canvas = document.getElementById('drawing-canvas');
+       const ctx = canvas.getContext('2d', { willReadFrequently: true });
+       const penToolBtn = document.getElementById('pen-tool');
+       const eraserToolBtn = document.getElementById('eraser-tool');
+       const moveToolBtn = document.getElementById('move-tool');
+       const colorPicker = document.getElementById('color-picker');
+       const brushSizeSlider = document.getElementById('brush-size');
+       const brushSizeValue = document.getElementById('brush-size-value');
+       const undoBtn = document.getElementById('undo-btn');
+       const redoBtn = document.getElementById('redo-btn');
+       const saveCanvasBtn = document.getElementById('save-canvas-btn');
+       const clearCanvasBtn = document.getElementById('clear-canvas-btn');
+       const downloadCanvasBtn = document.getElementById('download-canvas-btn');
+       const imageToolBtn = document.getElementById('image-tool-btn');
+       const imageSearchPanel = document.getElementById('image-search-panel');
+       const imageSearchInput = document.getElementById('image-search-input');
+       const performImageSearchBtn = document.getElementById('perform-image-search-btn');
+       const imageResultsContainer = document.getElementById('image-results-container');
+       const closeImageSearchBtn = document.getElementById('close-image-search-btn');
+       const projectListContainer = document.getElementById('project-list');
+       const interstitialAdOverlay = document.getElementById('interstitial-ad-overlay');
+       const interstitialAdContent = document.getElementById('interstitial-ad-content');
+       const interstitialTimerDisplay = document.getElementById('interstitial-timer-display');
+
+       // --- State ---
+       let isDrawing = false; let lastX = 0; let lastY = 0;
+       let tool = 'pen'; let strokeColor = '#000000'; let strokeSize = 5;
+       const history = { undo: [], redo: [] };
+       let currentProject = null;
+       let afterAdAction = null;
+       let interstitialTimerInterval = null;
+       let baseDrawingImage = new Image(); // This will hold the base drawing layer data
+
+       // --- Image & Move/Resize State ---
+       let imageObjects = []; // Array of image objects (not part of base drawing layer)
+       let loadedImages = {}; // Cache for Image elements keyed by src
+       let selectedImage = null;
+       let draggingState = { type: null, handle: null, startX: 0, startY: 0, startImageX: 0, startImageY: 0, startImageW: 0, startImageH: 0 };
+       let hasDragged = false; // Flag to track actual drag movement
+
+       // --- Utils ---
+       function debounce(func, wait){let t;return function(...a){const l=()=>{clearTimeout(t);func(...a);};clearTimeout(t);t=setTimeout(l,wait);}}
+       function isPointInRect(px, py, rx, ry, rw, rh) { return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh; }
+
+       // --- Screen Management ---
+       function showScreen(screenToShow) { /* ... unchanged ... */ hideImageSearchPanel(); if (interstitialAdOverlay.classList.contains('active')) { hideInterstitialAd(false); } screens.forEach(s => s.classList.remove('active')); screenToShow.classList.add('active'); if (screenToShow === whiteboardScreen) { requestAnimationFrame(() => { resizeCanvas(); if (currentProject?.state) { restoreCompleteState(currentProject.state); } else { clearCanvas(false); } updateProjectNameDisplay(); updateUndoRedoButtons(); redrawCompleteCanvas(); }); } else { setActiveTool('pen'); selectedImage = null; } }
+       function updateProjectNameDisplay() { /* ... unchanged ... */ if (currentProjectNameDisplay) currentProjectNameDisplay.textContent = currentProject ? currentProject.name : 'Unsaved Project'; }
+
+       // --- Canvas Setup & Redraw ---
+       const debouncedResize = debounce(() => { resizeCanvas(); }, 150);
+       window.addEventListener('resize', debouncedResize);
+       function resizeCanvas() { /* ... unchanged ... */ const container = canvasContainer; const tH = toolbar?.offsetHeight || 60; const aH = document.getElementById('ad-banner-whiteboard-container')?.offsetHeight || 95; const availableHeight = whiteboardScreen.clientHeight - tH - aH; const availableWidth = container.clientWidth; const dpr = window.devicePixelRatio || 1; const displayWidth = Math.floor(availableWidth); const displayHeight = Math.floor(availableHeight); if (canvas.width === displayWidth * dpr && canvas.height === displayHeight * dpr) return; const currentState = getCurrentState(); canvas.style.width = `${displayWidth}px`; canvas.style.height = `${displayHeight}px`; canvas.width = displayWidth * dpr; canvas.height = displayHeight * dpr; ctx.scale(dpr, dpr); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = strokeColor; ctx.lineWidth = strokeSize; ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; if(currentState && history.undo.length > 0) { restoreCompleteState(currentState, false); } else { ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr); redrawCompleteCanvas(); } }
+
+       // --- Main Redraw Function ---
+       function redrawCompleteCanvas() {
+         if (!ctx) return;
+         const dpr = window.devicePixelRatio || 1;
+         const scaledWidth = canvas.width / dpr;
+         const scaledHeight = canvas.height / dpr;
+
+         ctx.save();
+         // Clear the canvas COMPLETELY before redrawing anything
+         ctx.clearRect(0, 0, scaledWidth, scaledHeight);
+
+         // 1. Draw the base drawing layer (lines, eraser marks) from the baseDrawingImage
+          if (baseDrawingImage.complete && baseDrawingImage.naturalHeight !== 0) {
+            // Draw the base image scaled to the current canvas display size
+           ctx.drawImage(baseDrawingImage, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
+         }
+
+         // 2. Draw all image objects ON TOP of the base layer
+         imageObjects.forEach(obj => {
+           if (loadedImages[obj.src]?.complete && loadedImages[obj.src]?.naturalHeight !== 0) {
+             ctx.drawImage(loadedImages[obj.src], obj.x, obj.y, obj.width, obj.height);
+           } else if (!loadedImages[obj.src]?.isLoading) {
+             // Attempt load only if not already trying
+             loadImageElement(obj.src).then(() => redrawCompleteCanvas()).catch(()=>{/* Ignore redraw error */});
+           }
+          });
+
+         // 3. Draw selection UI if needed (on the very top)
+         if (tool === 'move' && selectedImage) {
+           drawSelectionUI(selectedImage);
+         }
+
+         ctx.restore();
+       }
+
+       // Updates the internal base drawing image element source
+       function updateBaseDrawingLayer(dataURL, callback) { /* ... unchanged ... */ baseDrawingImage = new Image(); baseDrawingImage.onload = () => { if (callback) callback(); redrawCompleteCanvas(); }; baseDrawingImage.onerror = () => { console.error("Failed to load base drawing image dataURL."); baseDrawingImage = new Image(); if (callback) callback(); redrawCompleteCanvas(); }; baseDrawingImage.src = dataURL; }
+
+       // --- Selection UI Drawing ---
+       function drawSelectionUI(imgObj) { /* ... unchanged ... */ drawSelectionRectangle(imgObj); drawResizeHandles(imgObj); drawActionButtons(imgObj); }
+       function drawSelectionRectangle(imgObj) { /* ... unchanged ... */ ctx.save(); const {x, y, width: w, height: h} = imgObj; ctx.strokeStyle = SELECTION_COLOR; ctx.lineWidth = 1.5; ctx.setLineDash([6, 3]); ctx.strokeRect(x, y, w, h); ctx.setLineDash([]); ctx.restore(); }
+       function drawResizeHandles(imgObj) { /* ... unchanged ... */ ctx.save(); const {x, y, width: w, height: h} = imgObj; const halfHandle = HANDLE_SIZE / 2; ctx.fillStyle = HANDLE_COLOR; ctx.fillRect(x - halfHandle, y - halfHandle, HANDLE_SIZE, HANDLE_SIZE); ctx.fillRect(x + w - halfHandle, y - halfHandle, HANDLE_SIZE, HANDLE_SIZE); ctx.fillRect(x - halfHandle, y + h - halfHandle, HANDLE_SIZE, HANDLE_SIZE); ctx.fillRect(x + w - halfHandle, y + h - halfHandle, HANDLE_SIZE, HANDLE_SIZE); ctx.restore(); }
+       function drawActionButtons(imgObj) { /* ... unchanged ... */ ctx.save(); const { x, y, width: w } = imgObj; const deleteBtnRect = getActionButtonRect(imgObj, 'delete'); const duplicateBtnRect = getActionButtonRect(imgObj, 'duplicate'); ctx.fillStyle = DELETE_BTN_COLOR; ctx.fillRect(deleteBtnRect.x, deleteBtnRect.y, deleteBtnRect.width, deleteBtnRect.height); ctx.fillStyle = DUPLICATE_BTN_COLOR; ctx.fillRect(duplicateBtnRect.x, duplicateBtnRect.y, duplicateBtnRect.width, duplicateBtnRect.height); ctx.font = ACTION_ICON_FONT; ctx.fillStyle = ACTION_ICON_COLOR; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(DELETE_ICON, deleteBtnRect.x + deleteBtnRect.width / 2, deleteBtnRect.y + deleteBtnRect.height / 2 + 1); ctx.fillText(DUPLICATE_ICON, duplicateBtnRect.x + duplicateBtnRect.width / 2, duplicateBtnRect.y + duplicateBtnRect.height / 2 + 1); ctx.restore(); }
+       function getActionButtonRect(imgObj, type) { /* ... unchanged ... */ const { x, y, width: w } = imgObj; let btnX, btnY; const margin = ACTION_BTN_PADDING; if (type === 'delete') { btnX = x + margin; btnY = y + margin; } else if (type === 'duplicate') { btnX = x + w - ACTION_BTN_SIZE - margin; btnY = y + margin; } else { return null; } return { x: btnX, y: btnY, width: ACTION_BTN_SIZE, height: ACTION_BTN_SIZE }; }
+
+       function getCanvasCoordinates(e) { /* ... unchanged ... */ const r = canvas.getBoundingClientRect(); let clientX, clientY; if (e.touches?.length > 0) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; } else if (e.clientX !== undefined) { clientX = e.clientX; clientY = e.clientY; } else return null; return { x: (clientX - r.left), y: (clientY - r.top) }; }
+
+        // --- Drawing (Pen/Eraser) ---
+        function drawLine(x1, y1, x2, y2) { /* ... unchanged ... */ if (!ctx) return; const isEraser = tool === 'eraser'; ctx.save(); ctx.lineWidth = strokeSize; ctx.strokeStyle = isEraser ? '#FFFFFF' : strokeColor; ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over'; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore(); }
+
+       // --- History ---
+       // Modified: getCurrentState now just serializes images, base layer handled in saveState
+       function getCurrentState() {
+          if (!canvas) return null;
+          const serializableImages = imageObjects.map(obj => ({
+            src: obj.src, x: obj.x, y: obj.y, width: obj.width, height: obj.height,
+            originalWidth: obj.originalWidth, originalHeight: obj.originalHeight, id: obj.id
+          }));
+          // Note: canvasData will be captured differently in saveState
+          return { images: serializableImages };
+       }
+
+       // MODIFIED SAVE STATE FUNCTION TO FIX DUPLICATION
+       function saveState() {
+         if (!canvas || !ctx) return;
+
+         // 1. Capture serializable image state (these are NOT part of the base layer snapshot)
+         const serializableImages = imageObjects.map(obj => ({
+           src: obj.src, x: obj.x, y: obj.y, width: obj.width, height: obj.height,
+           originalWidth: obj.originalWidth, originalHeight: obj.originalHeight, id: obj.id
+         }));
+
+         // 2. Create a temporary canvas to capture *only* the base drawing layer (pen/eraser strokes)
+         const tempCanvas = document.createElement('canvas');
+         const tempCtx = tempCanvas.getContext('2d');
+         const dpr = window.devicePixelRatio || 1;
+         // Match the main canvas's effective display size
+         tempCanvas.width = canvas.width;
+         tempCanvas.height = canvas.height;
+         tempCtx.scale(dpr, dpr); // Apply same scaling as main canvas
+
+         // Draw the content of the *current* base drawing image onto the temporary canvas
+         // This image should contain only the pen/eraser strokes from the previous state
+         if (baseDrawingImage.complete && baseDrawingImage.naturalHeight !== 0) {
+           // Ensure the drawing covers the entire canvas display area matching the main canvas
+           const canvasDisplayW = canvas.offsetWidth;
+           const canvasDisplayH = canvas.offsetHeight;
+           tempCtx.drawImage(baseDrawingImage, 0, 0, canvasDisplayW, canvasDisplayH);
+         } else {
+           // If baseDrawingImage is empty, ensure it's clear (it is by default)
+           tempCtx.clearRect(0, 0, tempCanvas.width / dpr, tempCanvas.height / dpr);
+         }
+
+         // Get the DataURL from the temporary canvas - this contains *only* the base drawing
+         const currentCanvasData = tempCanvas.toDataURL();
+
+         // 3. Create the state object using the separated data
+         const state = { canvasData: currentCanvasData, images: serializableImages };
+
+         // 4. Check against last state to avoid saving identical states rapidly
+         if (history.undo.length > 0) {
+           const lastState = history.undo[history.undo.length - 1];
+           // Compare the new base layer dataURL and the stringified images array
+           if (lastState.canvasData === state.canvasData && JSON.stringify(lastState.images) === JSON.stringify(state.images)) {
+              // State is identical to the last one, skip saving
+             return;
+           }
+         }
+
+         // 5. Push the new state onto the undo stack
+         history.redo = []; // Clear redo history on new action
+         if (history.undo.length >= MAX_HISTORY) {
+           history.undo.shift(); // Remove the oldest state if max history is reached
+         }
+         history.undo.push(state); // Add the new state
+
+         // 6. Update the *main* base drawing image using the DataURL we just generated
+         // This will correctly represent *only* the drawing layer for future redraws
+         // The redrawCompleteCanvas call happens inside updateBaseDrawingLayer.onload
+         updateBaseDrawingLayer(currentCanvasData);
+
+         // 7. Update undo/redo button states
+         updateUndoRedoButtons();
+       }
+
+
+       // Restores the complete canvas state including base drawing and images
+       function restoreCompleteState(state, pushToHistory = true) {
+          if (!state || !state.canvasData || !state.images) {
+            console.error("Invalid state for restoration:", state);
+            clearCanvas(false); // Attempt to clear if state is invalid
+            return;
+          }
+
+          // Save current state to target history stack before loading
+          if (pushToHistory && history.undo.length > 0) {
+            const currentState = { canvasData: baseDrawingImage.src, images: imageObjects.map(obj => ({ ...obj })) }; // Capture current actual state
+            const targetStack = pushToHistory === 'undo' ? history.redo : history.undo;
+            if (targetStack.length >= MAX_HISTORY) targetStack.shift();
+            targetStack.push(currentState);
+          }
+
+          // Restore image objects (replace the current array)
+          imageObjects = state.images.map(imgData => ({ ...imgData, img: loadedImages[imgData.src] || null }));
+          selectedImage = null; // Deselect image on state change
+
+          // Restore base drawing layer asynchronously
+          updateBaseDrawingLayer(state.canvasData); // redrawCompleteCanvas is called on load
+
+          // Restore drawing settings
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+          ctx.strokeStyle = strokeColor; // Assuming color/size aren't part of state
+          ctx.lineWidth = strokeSize;
+          ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; // Re-apply blend mode
+
+          updateUndoRedoButtons(); // Update button states based on new history
+       }
+
+
+       function restoreHistoryState(sourceStack, targetStack) {
+         if (sourceStack.length === 0) return;
+         const stateToLoad = sourceStack.pop();
+
+         // Capture current state BEFORE restoring
+         const currentState = { canvasData: baseDrawingImage.src, images: imageObjects.map(obj => ({ ...obj })) }; // Capture current actual state
+
+         if (targetStack.length >= MAX_HISTORY) targetStack.shift();
+         targetStack.push(currentState);
+
+         restoreCompleteState(stateToLoad, false); // Restore the state, but don't push current to history again
+       }
+
+
+       function updateUndoRedoButtons() { /* ... unchanged ... */ undoBtn.disabled = history.undo.length <= 1; redoBtn.disabled = history.redo.length === 0; }
+
+       // Modified clearCanvas to ensure baseDrawingImage is reset
+       function clearCanvas(confirmNeeded = true) {
+          if (confirmNeeded && !confirm('Clear canvas and remove all images? This cannot be undone.')) return;
+
+          // Reset state variables
+          imageObjects = [];
+          selectedImage = null;
+          history.undo = [];
+          history.redo = [];
+
+          // Clear the canvas context visually
+          const dpr = window.devicePixelRatio || 1;
+          ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
+          // Create a blank DataURL and update the baseDrawingImage
+          const blankDataURL = canvas.toDataURL(); // Should be empty after clearRect
+          baseDrawingImage = new Image(); // Create a new, empty image element
+          baseDrawingImage.onload = () => {
+            // Onload of the blank image, save this blank state to history
+            const blankState = { canvasData: blankDataURL, images: [] };
+            history.undo.push(blankState); // Start history with a blank state
+            redrawCompleteCanvas(); // Redraw after base image is ready (should be blank)
+            updateUndoRedoButtons();
+          };
+          baseDrawingImage.onerror = () => {
+            console.error("Failed to load blank base image dataURL.");
+            // Handle error case - still need to push blank state and redraw
+            const blankState = { canvasData: blankDataURL, images: [] };
+            history.undo.push(blankState);
+            redrawCompleteCanvas();
+            updateUndoRedoButtons();
+          };
+          baseDrawingImage.src = blankDataURL; // Load the blank data URL
+
+          // Push the initial blank state immediately if onload doesn't fire or for sync
+          // This might cause a double push if onload also pushes, but ensures a starting state exists
+          if (history.undo.length === 0 || history.undo[0].canvasData !== blankDataURL) {
+            const blankState = { canvasData: blankDataURL, images: [] };
+            history.undo.push(blankState);
+            updateUndoRedoButtons();
+          }
+
+          // Ensure undo/redo buttons are updated regardless of async load
+          updateUndoRedoButtons();
+        }
+
+
+       // --- Canvas Events ---
+       const handleStart = (e) => { /* ... Logic mostly unchanged, ensures hasDragged is reset ... */
+         if (interstitialAdOverlay.classList.contains('active')) return;
+         const isPanel = imageSearchPanel.classList.contains('active');
+         // Check if the click/touch is inside the image search panel
+         const isPanelClick = isPanel && imageSearchPanel.contains(e.target);
+
+         // If the panel is active AND the click is outside the panel, close the panel
+         if (isPanel && !isPanelClick) {
+           hideImageSearchPanel();
+           // Don't proceed with canvas interaction if panel is closing
+           return;
+         }
+
+         // If the panel is active and the click is inside it, or if the click is not directly on the canvas, ignore
+         if (isPanelClick || e.target !== canvas) return;
+
+         if (e.type.startsWith('touch')) e.preventDefault(); // Prevent scrolling/zooming
+
+         const coords = getCanvasCoordinates(e);
+         if (!coords) return;
+
+         isDrawing = true;
+         hasDragged = false; // Reset drag flag
+         [lastX, lastY] = [coords.x, coords.y];
+
+         if (tool === 'pen' || tool === 'eraser') {
+           // Drawing tools draw directly onto the canvas context
+           drawLine(coords.x, coords.y, coords.x, coords.y);
+         } else if (tool === 'move') {
+           let clickedOnAction = false;
+           let clickedOnResizeHandle = null;
+           let clickedImage = null;
+
+           // Check action buttons and resize handles first if an image is selected
+           if (selectedImage) {
+              const deleteBtnRect = getActionButtonRect(selectedImage, 'delete');
+              if (deleteBtnRect && isPointInRect(coords.x, coords.y, deleteBtnRect.x, deleteBtnRect.y, deleteBtnRect.width, deleteBtnRect.height)) {
+               deleteSelectedImage();
+               clickedOnAction = true; // Action taken, stop further processing
+              } else {
+               const duplicateBtnRect = getActionButtonRect(selectedImage, 'duplicate');
+               if (duplicateBtnRect && isPointInRect(coords.x, coords.y, duplicateBtnRect.x, duplicateBtnRect.y, duplicateBtnRect.width, duplicateBtnRect.height)) {
+                 duplicateSelectedImage();
+                 clickedOnAction = true; // Action taken, stop further processing
+               } else {
+                 clickedOnResizeHandle = checkResizeHandleHit(selectedImage, coords.x, coords.y);
+               }
+              }
+              if(clickedOnAction || clickedOnResizeHandle) clickedImage = selectedImage; // If handle/action on selected, process selected
+           }
+
+
+           // If no action/handle on selected, check if click hits *any* image (topmost first)
+           if (!clickedOnAction && !clickedOnResizeHandle) {
+             for (let i = imageObjects.length - 1; i >= 0; i--) {
+               const imgObj = imageObjects[i];
+               // Check if click is inside the image rectangle
+               if (isPointInRect(coords.x, coords.y, imgObj.x, imgObj.y, imgObj.width, imgObj.height)) {
+                 clickedImage = imgObj;
+                 break; // Found the top-most image clicked
+               }
+             }
+           }
+
+
+           if (clickedOnAction) {
+             // If an action button was clicked, the operation is complete.
+             isDrawing = false;
+             hasDragged = false; // No drag occurred
+           } else if (clickedOnResizeHandle) {
+              // Started a resize drag
+              selectedImage = clickedImage; // Ensure it's selected
+              draggingState.type = 'resize';
+              draggingState.handle = clickedOnResizeHandle;
+              draggingState.startX = coords.x;
+              draggingState.startY = coords.y;
+              draggingState.startImageX = selectedImage.x;
+              draggingState.startImageY = selectedImage.y;
+              draggingState.startImageW = selectedImage.width;
+              draggingState.startImageH = selectedImage.height;
+              canvas.style.cursor = 'crosshair'; // Change cursor
+              redrawCompleteCanvas(); // Redraw to show selection/handles
+           } else if (clickedImage) {
+             // Started a move drag (clicked on image but not handle/action)
+             if (selectedImage !== clickedImage) {
+               // If a different image was clicked, select it
+               selectedImage = clickedImage;
+               redrawCompleteCanvas(); // Redraw to show selection on the new image
+             }
+              draggingState.type = 'move';
+              draggingState.handle = null; // No handle involved
+              draggingState.startX = coords.x;
+              draggingState.startY = coords.y;
+              draggingState.startImageX = selectedImage.x; // Capture starting position
+              draggingState.startImageY = selectedImage.y;
+              draggingState.startImageW = selectedImage.width; // Capture starting size (needed for resize logic sometimes)
+              draggingState.startImageH = selectedImage.height;
+              canvas.style.cursor = 'grabbing'; // Change cursor
+           } else {
+             // Clicked on empty space
+             if (selectedImage) {
+                // Deselect if an image was previously selected
+                selectedImage = null;
+                redrawCompleteCanvas(); // Redraw to remove selection UI
+             }
+             // Not drawing, not moving an image
+             draggingState.type = null;
+             isDrawing = false; // No operation in progress
+             hasDragged = false;
+             canvas.style.cursor = 'move'; // Reset cursor
+           }
+         }
+        };
+
+
+       const handleMove = (e) => { /* ... Unchanged from v6.5 - sets hasDragged flag ... */
+         // Only proceed if an operation (drawing/dragging) is in progress
+         if (!isDrawing || e.target !== canvas) return;
+
+         if (e.type.startsWith('touch')) e.preventDefault(); // Prevent default touch actions like scrolling
+
+         const coords = getCanvasCoordinates(e);
+         if (!coords) return;
+
+         const currentX = coords.x;
+         const currentY = coords.y;
+
+         // Check if there's significant movement to set hasDragged
+         if (Math.abs(currentX - lastX) > 1 || Math.abs(currentY - lastY) > 1) {
+           hasDragged = true;
+         }
+
+         if (tool === 'pen' || tool === 'eraser') {
+           // For drawing tools, draw a line segment
+           drawLine(lastX, lastY, currentX, currentY);
+         } else if (tool === 'move' && selectedImage && draggingState.type) {
+           // For move tool, update the position/size of the selected image object
+           const dragDeltaX = currentX - draggingState.startX;
+           const dragDeltaY = currentY - draggingState.startY;
+
+           if (draggingState.type === 'move') {
+             // Update position based on drag delta
+             selectedImage.x = draggingState.startImageX + dragDeltaX;
+             selectedImage.y = draggingState.startImageY + dragDeltaY;
+           } else if (draggingState.type === 'resize') {
+             // Update size based on drag delta and handle
+             resizeImage(selectedImage, draggingState, currentX, currentY);
+           }
+
+           // Redraw the entire canvas to show the updated image position/size
+           redrawCompleteCanvas();
+         }
+
+         // Update last position for the next move event
+         [lastX, lastY] = [currentX, currentY];
+       };
+
+       const handleEnd = (e) => {
+         // Only proceed if an operation was in progress
+         if (!isDrawing) return;
+
+         // Determine if a state-modifying action occurred AND there was actual movement (for drag/resize)
+         const shouldSave = (tool === 'pen' || tool === 'eraser') || // Always save after drawing/erasing stroke ends
+                   (tool === 'move' && draggingState.type && hasDragged); // Only save after move/resize if actual drag happened
+
+         if (shouldSave) {
+           // Ensure the final state is rendered before saving the DataURL snapshot
+            // This was the critical fix in v6.5 and remains important
+            if (tool === 'move' && draggingState.type) {
+              redrawCompleteCanvas();
+            }
+            // Save the state including the updated base drawing and image objects
+            saveState();
+         }
+
+         // Reset cursor if move tool was active
+         if (tool === 'move') {
+           canvas.style.cursor = 'move';
+         }
+
+         // Reset state flags and variables for the next interaction
+         isDrawing = false;
+         hasDragged = false;
+         draggingState.type = null;
+         draggingState.handle = null;
+         // No need to deselect image unless explicitly clicking outside in handleStart
+       };
+
+
+       // --- Move/Resize/Action Helpers ---
+       function checkResizeHandleHit(imgObj, clickX, clickY) { /* ... unchanged ... */ const {x, y, width: w, height: h} = imgObj; const halfHandle = HANDLE_SIZE / 2; if (isPointInRect(clickX, clickY, x - halfHandle, y - halfHandle, HANDLE_SIZE, HANDLE_SIZE)) return 'tl'; if (isPointInRect(clickX, clickY, x + w - halfHandle, y - halfHandle, HANDLE_SIZE, HANDLE_SIZE)) return 'tr'; if (isPointInRect(clickX, clickY, x - halfHandle, y + h - halfHandle, HANDLE_SIZE, HANDLE_SIZE)) return 'bl'; if (isPointInRect(clickX, clickY, x + w - halfHandle, y + h - halfHandle, HANDLE_SIZE, HANDLE_SIZE)) return 'br'; return null; }
+       function resizeImage(imgObj, dragInfo, mouseX, mouseY) { /* ... unchanged ... */ const { startImageX: startX, startImageY: startY, startImageW: startW, startImageH: startH, handle } = dragInfo; let newX = startX, newY = startY, newW = startW, newH = startH; const aspectRatio = imgObj.originalWidth / imgObj.originalHeight; const minSize = HANDLE_SIZE * 3; switch (handle) { case 'br': newW = Math.max(minSize, mouseX - startX); newH = newW / aspectRatio; break; case 'bl': newW = Math.max(minSize, startX + startW - mouseX); newH = newW / aspectRatio; newX = startX + startW - newW; break; case 'tr': newW = Math.max(minSize, mouseX - startX); newH = newW / aspectRatio; newY = startY + startH - newH; break; case 'tl': newW = Math.max(minSize, startX + startW - mouseX); newH = newW / aspectRatio; newX = startX + startW - newW; newY = startY + startH - newH; break; } if (newW >= minSize && newH >= minSize) { imgObj.x = newX; imgObj.y = newY; imgObj.width = newW; imgObj.height = newH; } }
+
+       // Modified deleteSelectedImage and duplicateSelectedImage to saveState after action
+       function deleteSelectedImage() {
+          if (!selectedImage) return;
+          const index = imageObjects.findIndex(obj => obj.id === selectedImage.id);
+          if (index > -1) {
+            imageObjects.splice(index, 1); // Remove from array
+            selectedImage = null; // Deselect
+            draggingState.type = null; // Reset drag state
+            hasDragged = false; // No drag occurred during deletion
+            saveState(); // Save the state after deletion
+            redrawCompleteCanvas(); // Redraw to show the change
+            updateUndoRedoButtons(); // Update history buttons
+          }
+        }
+
+        function duplicateSelectedImage() {
+          if (!selectedImage) return;
+          const originalObject = selectedImage;
+          // Create a new object with a new ID and slightly offset position
+          const newObject = {
+            ...originalObject, // Copy properties from original
+            id: Date.now() + Math.random(), // Assign a unique ID
+            x: originalObject.x + 20, // Offset position
+            y: originalObject.y + 20,
+            img: loadedImages[originalObject.src] // Reuse the loaded Image element
+          };
+          imageObjects.push(newObject); // Add the new object to the array
+          selectedImage = newObject; // Select the newly created duplicate
+          draggingState.type = null; // Reset drag state
+          hasDragged = false; // No drag occurred during duplication
+          saveState(); // Save the state after duplication
+          redrawCompleteCanvas(); // Redraw to show the new duplicate and selection
+          updateUndoRedoButtons(); // Update history buttons
+        }
+
+
+       // Event Listeners (Canvas)
+       ['mousedown', 'touchstart'].forEach(evt => canvas.addEventListener(evt, handleStart, { passive: !evt.startsWith('touch') }));
+       ['mousemove', 'touchmove'].forEach(evt => canvas.addEventListener(evt, handleMove, { passive: !evt.startsWith('touch') }));
+       ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(evt => document.addEventListener(evt, handleEnd));
+
+       // --- Toolbar ---
+       function setActiveTool(newTool) { /* ... unchanged ... */ tool = newTool; penToolBtn.classList.toggle('active', newTool === 'pen'); eraserToolBtn.classList.toggle('active', newTool === 'eraser'); moveToolBtn.classList.toggle('active', newTool === 'move'); imageToolBtn.classList.toggle('active', newTool === 'image'); if (newTool !== 'move' && selectedImage) { selectedImage = null; redrawCompleteCanvas(); } if (newTool === 'pen' || newTool === 'eraser') canvas.style.cursor = 'crosshair'; else if (newTool === 'move') canvas.style.cursor = 'move'; else canvas.style.cursor = 'default'; if(newTool !== 'image') hideImageSearchPanel(); }
+       if (toolbar) { /* ... unchanged event listener logic ... */ toolbar.addEventListener('click', (e) => { const t = e.target.closest('.tool-btn'); if (!t || t.disabled) return; const id = t.id; if (id === 'pen-tool') setActiveTool('pen'); else if (id === 'eraser-tool') setActiveTool('eraser'); else if (id === 'move-tool') setActiveTool('move'); else if (id === 'image-tool-btn') toggleImageSearchPanel(); else if (id === 'undo-btn') restoreHistoryState(history.undo, history.redo); else if (id === 'redo-btn') restoreHistoryState(history.redo, history.undo); else if (id === 'save-canvas-btn') saveCurrentProject(); else if (id === 'download-canvas-btn') downloadCanvas(); else if (id === 'clear-canvas-btn') clearCanvas(true); else if (id === 'exit-whiteboard-btn') { if (confirm('Exit project? Unsaved changes will be lost.')) { currentProject = null; imageObjects = []; selectedImage = null; history.undo = []; history.redo = []; baseDrawingImage = new Image(); // Reset base image
+ showScreen(startScreen); } } }); }
+       if(colorPicker) colorPicker.addEventListener('input', (e) => { strokeColor = e.target.value; ctx.strokeStyle = strokeColor; if (tool !== 'eraser' && tool !== 'move') setActiveTool('pen'); });
+       if(brushSizeSlider) brushSizeSlider.addEventListener('input', (e) => { strokeSize = parseInt(e.target.value, 10); if(brushSizeValue) brushSizeValue.textContent = strokeSize; if(ctx) ctx.lineWidth = strokeSize; });
+
+       // --- Download Canvas ---
+       function downloadCanvas() { /* ... unchanged ... */ if (!canvas) return; const currentSelected = selectedImage; selectedImage = null; redrawCompleteCanvas(); // Draw without selection UI first
+       // Wait for redraw to complete if it was needed - simple timeout approach
+       requestAnimationFrame(() => { // Use requestAnimationFrame to ensure canvas is updated
+         const tempCanvas = document.createElement('canvas');
+         const tempCtx = tempCanvas.getContext('2d');
+         const dpr = window.devicePixelRatio || 1;
+         // Set temp canvas size to match main canvas pixel size for clarity
+         tempCanvas.width = canvas.width;
+         tempCanvas.height = canvas.height;
+         // Copy the content from the main canvas
+         tempCtx.drawImage(canvas, 0, 0);
+
+         const dataURL = tempCanvas.toDataURL('image/png');
+         const link = document.createElement('a');
+         link.href = dataURL;
+         link.download = `${currentProject?.name || 'whiteboard_drawing'}.png`;
+         document.body.appendChild(link);
+         link.click();
+         document.body.removeChild(link);
+
+         selectedImage = currentSelected; // Restore selection state
+         if (selectedImage) redrawCompleteCanvas(); // Redraw with selection UI if it was active
+       });
+     }
+
+
+       // --- Image Loading & Search ---
+       function loadImageElement(url) { /* ... unchanged ... */ return new Promise((resolve, reject) => { if (loadedImages[url]) { const img = loadedImages[url]; if (img.complete && img.naturalHeight !== 0) resolve(img); else if (img.isLoading) { img.onload = () => resolve(img); img.onerror = (err) => reject(err); } else { delete loadedImages[url]; reject(new Error(`Cached image failed: ${url}`)); } return; } const img = new Image(); img.crossOrigin = "Anonymous"; img.isLoading = true; img.onload = () => { img.isLoading = false; loadedImages[url] = img; resolve(img); }; img.onerror = (err) => { img.isLoading = false; console.error('Image Load Error:', url, err); reject(err); }; img.src = url; }); }
+       function toggleImageSearchPanel() { /* ... unchanged ... */ const isActive = imageSearchPanel.classList.toggle('active'); setActiveTool(isActive ? 'image' : 'pen'); }
+       function hideImageSearchPanel() { /* ... unchanged ... */ if(imageSearchPanel.classList.contains('active')) { imageSearchPanel.classList.remove('active'); if(tool === 'image') setActiveTool('pen'); } }
+       if(closeImageSearchBtn) closeImageSearchBtn.addEventListener('click', hideImageSearchPanel);
+       if(performImageSearchBtn) performImageSearchBtn.addEventListener('click', () => { const q = imageSearchInput.value.trim(); if (q) searchImages(q); else alert('Enter search term.'); });
+       if(imageSearchInput) imageSearchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performImageSearchBtn.click(); });
+       async function searchImages(query) { /* ... unchanged ... */ const url = `https://pixabay.com/api/?key=${PIXABAY_API_KEY}&q=${encodeURIComponent(query)}&image_type=photo&safesearch=true&per_page=${PIXABAY_RESULTS_PER_PAGE}&nocache=${Date.now()}`; imageResultsContainer.innerHTML = '<p>Searching...</p>'; try { const response = await fetch(url); if (!response.ok) throw new Error(`HTTP error ${response.status}`); const data = await response.json(); imageResultsContainer.innerHTML = ''; if (data.hits?.length > 0) { data.hits.forEach(hit => { const imgUrl = hit.largeImageURL || hit.webformatURL; const previewUrl = hit.previewURL || hit.webformatURL; const imgEl = document.createElement('img'); imgEl.src = previewUrl; imgEl.alt = hit.tags; imgEl.title = `Click to place: ${hit.tags}`; imgEl.dataset.imageUrl = imgUrl; imgEl.onclick = () => { hideImageSearchPanel(); addImageObjectToCanvas(imgEl.dataset.imageUrl); }; imageResultsContainer.appendChild(imgEl); }); } else { imageResultsContainer.innerHTML = '<p>No images found.</p>'; } } catch (error) { console.error('Image Search Error:', error); imageResultsContainer.innerHTML = `<p>Error searching images: ${error.message}</p>`; } }
+
+       // --- Modified addImageObjectToCanvas ---
+       // Called when user clicks an image from search results
+       async function addImageObjectToCanvas(url) {
+         if (!ctx || !url) return;
+
+         // Set tool to move and close search panel
+         setActiveTool('move');
+         hideImageSearchPanel(); // Ensure panel is hidden
+
+         try {
+           const img = await loadImageElement(url);
+           const dpr = window.devicePixelRatio || 1;
+           const canvasW = canvas.offsetWidth; // Use display size for initial placement calculation
+           const canvasH = canvas.offsetHeight;
+           const maxW = canvasW * 0.5;
+           const maxH = canvasH * 0.5;
+           const scale = Math.min(1, maxW / img.naturalWidth, maxH / img.naturalHeight);
+           const drawWidth = img.naturalWidth * scale;
+           const drawHeight = img.naturalHeight * scale;
+           const drawX = (canvasW - drawWidth) / 2;
+           const drawY = (canvasH - drawHeight) / 2;
+
+           // Create a new image object
+           const newImageObject = {
+             img, // Keep reference to loaded image element
+             src: url,
+             x: drawX, y: drawY,
+             width: drawWidth, height: drawHeight,
+             originalWidth: img.naturalWidth, originalHeight: img.naturalHeight,
+             id: Date.now() + Math.random() // Unique ID for the object
+           };
+
+           imageObjects.push(newImageObject); // Add the new image object to the array
+           selectedImage = newImageObject; // Select the newly added image
+
+           // Redraw canvas to show the new image and its selection UI
+           redrawCompleteCanvas();
+
+           // Save the state *after* the image is added and drawn
+           saveState();
+           updateUndoRedoButtons();
+
+         } catch (error) {
+           console.error('Failed to add image object:', error);
+           alert('Could not load or place image.');
+           setActiveTool('pen'); // Revert tool if adding failed
+         }
+       }
+
+
+       // --- Project Save/Load/Delete ---
+       function saveCurrentProject() { /* ... unchanged ... */ if (!currentProject) { const name = prompt("Enter project name:", projectNameInput.value || "My Project"); if (!name) return; currentProject = { name: name, state: null }; projectNameInput.value = name; updateProjectNameDisplay(); }
+        // Capture the current state using the improved saveState logic
+        saveState(); // saveState updates currentProject.state internally and handles storage
+        const savedProjects = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        savedProjects[currentProject.name] = { name: currentProject.name, state: history.undo[history.undo.length -1] }; // Save the latest state from history
+
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(savedProjects)); alert(`Project "${currentProject.name}" saved.`); } catch (e) { alert(`Save failed: ${e.name === 'QuotaExceededError' ? 'Storage quota exceeded.' : e.message}`); console.error('Save error:', e); }
+       }
+
+       // loadProject now just ensures the ad is shown before calling the state restoration
+       function loadProject(projectName) {
+         const savedProjects = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+         const projectData = savedProjects[projectName];
+
+         if (!projectData?.state) {
+           alert(`Project "${projectName}" not found or is corrupted.`);
+           return;
+         }
+
+         // Action to perform after ad is shown: set current project and load state
+         const afterAdLoadAction = () => {
+           currentProject = { name: projectName, state: projectData.state };
+           projectNameInput.value = projectName;
+           // Restore the state from the loaded project data
+           restoreCompleteState(currentProject.state);
+           // Go to the whiteboard screen
+           showScreen(whiteboardScreen);
+         };
+
+         // Show interstitial ad, then execute the load action
+         showInterstitialAd(afterAdLoadAction);
+       }
+
+       function deleteProject(projectName) { /* ... unchanged ... */ const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); if (!saved[projectName]) { alert('Project not found.'); return; } if (confirm(`Delete project "${projectName}"? This cannot be undone.`)) { delete saved[projectName]; localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)); alert(`Project deleted.`); displaySavedProjects(); if (currentProject?.name === projectName) { currentProject = null; projectNameInput.value = ''; updateProjectNameDisplay(); if (whiteboardScreen.classList.contains('active')) clearCanvas(false); } } }
+       function displaySavedProjects() { /* Modified item.onclick */ const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); const names = Object.keys(saved).sort(); projectListContainer.innerHTML = ''; if (names.length === 0) { projectListContainer.innerHTML = '<p>No saved projects.</p>'; return; } names.forEach(name => { const item = document.createElement('div'); item.className = 'project-list-item'; const nameSpan = document.createElement('span'); nameSpan.textContent = name; item.appendChild(nameSpan); item.onclick = () => loadProject(name); /* Call loadProject, which handles the ad */ const delBtn = document.createElement('button'); delBtn.className = 'delete-project-btn'; delBtn.innerHTML = '<i class="fas fa-trash"></i>'; delBtn.title = `Delete "${name}"`; delBtn.onclick = (e) => { e.stopPropagation(); deleteProject(name); }; item.appendChild(delBtn); projectListContainer.appendChild(item); }); }
+
+       // --- Interstitial Ad ---
+       function showInterstitialAd(onCloseCallback) {
+          if (!interstitialAdOverlay || !interstitialAdContent || !interstitialTimerDisplay) { console.warn("Interstitial elements missing."); if (typeof onCloseCallback === 'function') onCloseCallback(); return; }
+         if (interstitialTimerInterval) clearInterval(interstitialTimerInterval);
+
+         // Set initial content and show overlay
+         interstitialAdContent.innerHTML = '<p>Loading Ad...</p>'; // Default text
+         afterAdAction = onCloseCallback;
+         interstitialAdOverlay.classList.add('active');
+
+         // Load Ad Scripts
+         // Clear previous ad scripts/content
+          while (interstitialAdContent.firstChild) { interstitialAdContent.removeChild(interstitialAdContent.firstChild); }
+
+          // Append the ad script logic within the ad container div
+         const optionsScript = document.createElement('script');
+         optionsScript.type = 'text/javascript';
+         optionsScript.textContent = `atOptions={'key':'ce2ceb34cde24e9b21eb7df2407b1a31','format':'iframe','height':250,'width':300,'params':{}};`;
+         interstitialAdContent.appendChild(optionsScript);
+
+         const invokeScript = document.createElement('script');
+         invokeScript.type = 'text/javascript';
+         invokeScript.src = "//www.highperformanceformat.com/ce2ceb34cde24e9b21eb7df2407b1a31/invoke.js";
+         invokeScript.async = true;
+         invokeScript.onerror = () => {
+           console.error("Failed to load ad script.");
+           // Display error message within the ad container if script fails
+           interstitialAdContent.innerHTML = '<p>Ad failed to load.<br>Closing automatically...</p>';
+         };
+          interstitialAdContent.appendChild(invokeScript);
+
+
+         // Start Timer
+         let countdown = INTERSTITIAL_TIMEOUT_SECONDS;
+         interstitialTimerDisplay.textContent = `${countdown}s`;
+         interstitialTimerDisplay.style.display = 'block';
+
+         interstitialTimerInterval = setInterval(() => {
+           countdown--;
+           interstitialTimerDisplay.textContent = `${countdown}s`;
+           if (countdown <= 0) {
+             hideInterstitialAd(true); // Timer finished, close and run callback
+           }
+         }, 1000);
+       }
+
+       function hideInterstitialAd(runCallback = true) { /* ... Unchanged from v6.5 - no close button logic needed ... */
+         if (!interstitialAdOverlay) return;
+         if (interstitialTimerInterval) { clearInterval(interstitialTimerInterval); interstitialTimerInterval = null; }
+         interstitialAdOverlay.classList.remove('active');
+         if (interstitialAdContent) interstitialAdContent.innerHTML = ''; // Clear content
+         if (interstitialTimerDisplay) interstitialTimerDisplay.style.display = 'none';
+         if (runCallback && typeof afterAdAction === 'function') { setTimeout(afterAdAction, 50); } // Small delay to allow UI update
+          afterAdAction = null;
+       }
+
+
+       // --- Init & Nav ---
+        if(startBtn) startBtn.onclick = () => { projectNameInput.value = ''; currentProject = null; history.undo = []; history.redo = []; baseDrawingImage = new Image(); // Reset state on starting new project flow
+        showScreen(projectSetupScreen); };
+        if(loadBtn) loadBtn.onclick = () => { displaySavedProjects(); showScreen(savedProjectsScreen); };
+        if(setupBackBtn) setupBackBtn.onclick = () => showScreen(startScreen);
+        if(savedBackBtn) savedBackBtn.onclick = () => showScreen(startScreen);
+        if(createProjectBtn) createProjectBtn.onclick = () => { /* Calls showInterstitialAd before whiteboard */
+          const name = projectNameInput.value.trim(); if (!name) { alert('Please enter a project name.'); return; } const savedProjects = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+          // Action to perform after ad is shown: create/load project and go to whiteboard
+          const afterAdCreateAction = () => {
+            currentProject = { name: name, state: null }; // Create new project object
+            projectNameInput.value = name;
+            clearCanvas(false); // Start with a clean canvas and initial blank state
+            showScreen(whiteboardScreen); // Go to whiteboard
+          };
+
+          if (savedProjects[name]) {
+            if (confirm(`Project "${name}" already exists. Overwrite it?`)) {
+             // Load the existing project first if overwriting, otherwise clearCanvas would lose it
+             loadProject(name); // loadProject handles the ad and showing whiteboard
+            }
+          } else {
+           // If it's a truly new project, show the ad then create it
+           showInterstitialAd(afterAdCreateAction);
+          }
+        };
+
+
+       // --- Final Init ---
+       clearCanvas(false); // Initialize with a blank canvas and history state
+       showScreen(startScreen); // Show the starting screen first
+
+       // Preload Font Awesome for action buttons
+       const preloadFont = new FontFace('Font Awesome 6 Free', 'url(https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2)', { weight: '900' });
+       preloadFont.load().then((loadedFont) => {
+          document.fonts.add(loadedFont);
+          // If whiteboard is already visible (e.g., loaded from saved state quickly), redraw to show icons
+          if (whiteboardScreen.classList.contains('active')) {
+            redrawCompleteCanvas();
+          }
+       }).catch(error => console.warn("Font Awesome preloading failed:", error));
+
+     }); // End DOMContentLoaded
+   </script>
+
+</body>
+</html>
